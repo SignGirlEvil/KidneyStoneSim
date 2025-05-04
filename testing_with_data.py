@@ -3,6 +3,7 @@ from crystals.constants import *
 from utils.distributions import sample_beta_dist
 import matplotlib.pyplot as plt
 import statistics
+from random import random
 
 
 # molar_mass in g / mol
@@ -48,42 +49,46 @@ def get_bloods(num_patients: int) -> list[float]:
     return patient_bloods
 
 
-def main():
-    num_patients = 50000
+def run_test(num_patients: int, contact_angle: float = CAOX_CONTACT_ANGLE, surface_energy: float = CAOX_SURFACE_ENERGY,
+             nuc_arr: float = NUCLEATION_ARRHENIUS_CONST, grow_arr: float = GROWTH_ARRHENIUS_CONST,
+             show_results: bool = True, include_prints: bool = False):
     patient_bloods = get_bloods(num_patients)
 
-    stone_former_ss_dist = [supersaturation for supersaturation in patient_bloods[:int(num_patients/10)]]
+    stone_former_ss_dist = [supersaturation for supersaturation in patient_bloods[:int(num_patients / 10)]]
     caox_ss_dist = [supersaturation for supersaturation in patient_bloods]
 
     all_stone_times: list[float] = []
     usable_stone_times: list[float] = []
     usable_stone_caox_ss: list[float] = []
-    kidney: Kidney = Kidney(patient_bloods[0])
+    kidney: Kidney = Kidney(patient_bloods[0], contact_angle, surface_energy, nuc_arr, grow_arr)
 
     for i, supersaturation in enumerate(patient_bloods):
-        print(f'i: {i}, SS: {supersaturation:.2f}', end=', ')
+        if include_prints:
+            print(f'i: {i}, SS: {supersaturation:.2f}', end=', ')
         kidney.supersaturation = supersaturation
         next_time = kidney.determine_time_until_stone(max_crystals=100, include_prints=False,
-                                                      max_time=10*SECONDS_PER_YEAR) / SECONDS_PER_YEAR
+                                                      max_time=10 * SECONDS_PER_YEAR) / SECONDS_PER_YEAR
 
-        print(next_time)
+        if include_prints:
+            print(next_time)
         all_stone_times.append(next_time)
 
         if next_time <= 5:
             usable_stone_times.append(next_time)
             usable_stone_caox_ss.append(supersaturation)
 
-        # print(f'Appended: {all_stone_times[-1]} Years')
+    if len(usable_stone_caox_ss) < 2:
+        return False
+
+    if not show_results:
+        return (statistics.mean(usable_stone_caox_ss), statistics.stdev(usable_stone_caox_ss),
+                100 * len(usable_stone_caox_ss) / num_patients)
 
     print(f'Stone Prevalence: {100 * len(usable_stone_caox_ss) / num_patients:.2f}%')
-
-    if not usable_stone_caox_ss:
-        return
-
     print(f'Mean CaOx SS of Predicted Stone Formers: {statistics.mean(usable_stone_caox_ss)}')
     print(f'Standard Deviation CaOx SS of Predicted Stone Formers: {statistics.stdev(usable_stone_caox_ss)}')
     print(f'Mean Stone Form Time: {statistics.mean(usable_stone_times):.3f} years')
-    print(f'St Dev of CaOx SS of Artificial Stone Formers: {statistics.stdev(caox_ss_dist[:num_patients//10])}')
+    print(f'St Dev of CaOx SS of Artificial Stone Formers: {statistics.stdev(caox_ss_dist[:num_patients // 10])}')
 
     fig, axs = plt.subplots(2, 3)
 
@@ -119,5 +124,79 @@ def main():
     plt.show()
 
 
+def find_min_error_by_guessing(num_iters: int = 10):
+    num_patients = 8000
+
+    best_total_error = 1e50
+    best_contact_angle = CAOX_CONTACT_ANGLE
+    best_surface_energy = CAOX_SURFACE_ENERGY
+    best_nuc_arr = NUCLEATION_ARRHENIUS_CONST
+    best_grow_arr = GROWTH_ARRHENIUS_CONST
+    best_mean = 0
+    best_stdev = 0
+    best_prev = 100
+
+    def weighted_total_err(i_mean_err, i_stdev_err, i_prev_err):
+        return (3 * i_mean_err) + (1 * i_stdev_err) + (2 * i_prev_err)
+
+    for i in range(num_iters):
+        contact_angle = best_contact_angle + ((4 * random() - 2) * (i > 0))
+        surface_energy = best_surface_energy + ((0.002 * random() - 0.001) * (i > 0))
+        nuc_arr = best_nuc_arr * (10 ** ((2 * random() - 1) * (i > 0)))
+        grow_arr = best_grow_arr * (10 ** ((2 * random() - 1) * (i > 0)))
+
+        print(f'Iter: {i}, Angle: {contact_angle:.4f}, Surf E: {surface_energy:.7f}, Nuc A: {nuc_arr:.5e}, '
+              f'Grow A: {grow_arr:.5e}')
+
+        results = run_test(num_patients, contact_angle, surface_energy, nuc_arr, grow_arr, show_results=False)
+
+        if not results:
+            print('0% prevalence')
+            print('------------------------')
+            continue
+
+        mean, stdev, prev = results[0], results[1], results[2]
+
+        mean_err = abs((mean - 6.7) / 6.7)
+        stdev_err = abs((stdev - 3.1) / 3.1)
+        prev_err = abs((prev - 10) / 10)
+        total_err = weighted_total_err(mean_err, stdev_err, prev_err)
+
+        print(f'Mean: {mean:.4f}, StDev: {stdev:.4f}, Prev: {prev:.4f}')
+        print(f'Mean Err: {mean_err:.4f}, StDev Err: {stdev_err:.4f}, Prev Err: {prev_err:.4f}, '
+              f'Weighted Total Err: {total_err:.4f}')
+
+        if total_err < best_total_error:
+            best_total_error = total_err
+            best_contact_angle = contact_angle
+            best_surface_energy = surface_energy
+            best_nuc_arr = nuc_arr
+            best_grow_arr = grow_arr
+            best_mean = mean
+            best_stdev = stdev
+            best_prev = prev
+            print('New best!')
+
+        print('------------------------')
+
+    print('Best:')
+    print(f'Angle: {best_contact_angle}, Surf E: {best_surface_energy}, Nuc A: {best_nuc_arr}, Grow A: {best_grow_arr}')
+    print(f'Mean: {best_mean:.4f}, StDev: {best_stdev:.4f}, Prev: {best_prev:.4f}')
+
+    mean_err = abs((best_mean - 6.7) / 6.7)
+    stdev_err = abs((best_stdev - 3.1) / 3.1)
+    prev_err = abs((best_prev - 10) / 10)
+    total_err = weighted_total_err(mean_err, stdev_err, prev_err)
+    print(f'Mean Err: {mean_err:.4f}, StDev Err: {stdev_err:.4f}, Prev Err: {prev_err:.4f}, '
+          f'Weighted Total Err: {total_err:.4f}')
+
+
 if __name__ == '__main__':
-    main()
+    # Have this line uncommented for the robust test
+    run_test(50000, show_results=True, include_prints=True)
+
+    # Have this line uncommented for the quick test
+    # run_test(1000)
+
+    # Have this line uncommented for finding the optimal parameters
+    # find_min_error_by_guessing(100)

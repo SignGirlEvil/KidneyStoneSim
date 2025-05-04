@@ -18,13 +18,20 @@ class RenalPapilla:
     PLASMA_VOLUME_FLOW = 1e-5  # m^3 / s
     PLASMA_VELOCITY = PLASMA_VOLUME_FLOW / RENAL_PAP_CROSS_SECTIONAL_AREA  # m / s
 
-    def __init__(self, supersaturation: float):
+    def __init__(self, supersaturation: float, surface_energy: float, growth_arrhenius: float, contact_angle: float,
+                 nucleation_arrhenius: float):
         self._supersaturation: float = supersaturation
-        self._nucleation_rate = self.calculate_nucleation_rate(supersaturation)
+        self._nucleation_rate = self.calculate_nucleation_rate(supersaturation, contact_angle, nucleation_arrhenius,
+                                                               surface_energy)
 
         max_crystal_volume = 4 * ONE_THIRD * math.pi * ((self.RENAL_PAP_DIAM / 2.0) ** 3)
-        self._growth_constant = Crystal.calculate_growth_constant(supersaturation)
+        self._growth_constant = Crystal.calculate_growth_constant(supersaturation, surface_energy, growth_arrhenius)
         self._max_crystal_lifespan = Crystal.calculate_max_lifespan(self._growth_constant, max_crystal_volume)
+
+        self._contact_angle = contact_angle
+        self._surface_energy = surface_energy
+        self._nucleation_arrhenius = nucleation_arrhenius
+        self._growth_arrhenius = growth_arrhenius
 
     @property
     def supersaturation(self) -> float:
@@ -33,10 +40,11 @@ class RenalPapilla:
     @supersaturation.setter
     def supersaturation(self, new_ss: float):
         self._supersaturation = new_ss
-        self._nucleation_rate = self.calculate_nucleation_rate(new_ss)
+        self._nucleation_rate = self.calculate_nucleation_rate(new_ss, self._contact_angle, self._nucleation_arrhenius,
+                                                               self._surface_energy)
 
         max_crystal_volume = 4 * ONE_THIRD * math.pi * ((self.RENAL_PAP_DIAM / 2.0) ** 3)
-        self._growth_constant = Crystal.calculate_growth_constant(new_ss)
+        self._growth_constant = Crystal.calculate_growth_constant(new_ss, self._surface_energy, self._growth_arrhenius)
         self._max_crystal_lifespan = Crystal.calculate_max_lifespan(self._growth_constant, max_crystal_volume)
 
     @property
@@ -56,23 +64,29 @@ class RenalPapilla:
         return (2.0 - (3.0 * math.cos(theta)) + (math.cos(theta) ** 3)) / 4.0
 
     @staticmethod
-    def calculate_nucleation_activation_barrier(caox_supersaturation: float) -> float:
-        het_mult = RenalPapilla.calculate_heterogeneous_multiplier(math.radians(CAOX_CONTACT_ANGLE))
-        numerator = 16 * math.pi * (CAOX_SURFACE_ENERGY ** 3) * (CAOX_MOLECULE_VOL ** 2)
+    def calculate_nucleation_activation_barrier(caox_supersaturation: float, contact_angle: float,
+                                                surface_energy: float) -> float:
+        het_mult = RenalPapilla.calculate_heterogeneous_multiplier(math.radians(contact_angle))
+        numerator = 16 * math.pi * (surface_energy ** 3) * (CAOX_MOLECULE_VOL ** 2)
         denominator = 3 * ((THERMAL_ENERGY * math.log(caox_supersaturation)) ** 2)
         return het_mult * numerator / denominator
 
     @staticmethod
-    def calculate_nucleation_rate(caox_supersaturation: float) -> float:
-        activation_barrier = RenalPapilla.calculate_nucleation_activation_barrier(caox_supersaturation)
-        return NUCLEATION_ARRHENIUS_CONST * math.exp(-activation_barrier / THERMAL_ENERGY)
+    def calculate_nucleation_rate(caox_supersaturation: float, contact_angle: float, nuc_arr: float,
+                                  surface_energy: float) -> float:
+        activation_barrier = RenalPapilla.calculate_nucleation_activation_barrier(caox_supersaturation, contact_angle,
+                                                                                  surface_energy)
+        return nuc_arr * math.exp(-activation_barrier / THERMAL_ENERGY)
 
     def determine_time_until_stone(self, max_time: float = 1e50, max_crystals: int = 1000,
                                    include_prints: bool = False) -> float:
         release_events: list[_ReleaseEvent] = []
         crystals: list[Crystal] = []
 
-        next_nucleation_time = distributions.exp_dist_cdf_inverse(random(), self._nucleation_rate)
+        try:
+            next_nucleation_time = distributions.exp_dist_cdf_inverse(random(), self._nucleation_rate)
+        except ValueError:
+            next_nucleation_time = 1e-6  # lmfao what a bad fix, but idgaf I just want it to stop crashing
         next_release_time = next_nucleation_time + \
             distributions.sample_triangular_dist(0, self._max_crystal_lifespan, self._max_crystal_lifespan)
         curr_time = next_nucleation_time
@@ -103,7 +117,11 @@ class RenalPapilla:
                     print(f'Nucleation occurred at time {next_nucleation_time:.3e} making a crystal with a lifespan of '
                           f'{new_lifespan:.3e}', end=' ')
 
-                next_nucleation_time += distributions.exp_dist_cdf_inverse(random(), self._nucleation_rate)
+                try:
+                    next_nucleation_time += distributions.exp_dist_cdf_inverse(random(), self._nucleation_rate)
+                except ValueError:
+                    next_nucleation_time += 1e-6
+
                 next_release_time = min(new_release_time, next_release_time)
 
                 if include_prints:

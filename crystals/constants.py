@@ -39,11 +39,9 @@ PROBLEM_RADIUS = 1e-3  # m (The minimum radius stones must be to cause problems)
 # we are a group of mechanical engineers way out of our depth, this is...certainly something.
 # If someone out there is reading this, and is actually looking to do something with this,
 # please try to contact the owner of this github repo! I'd love to chat
-CAOX_CONTACT_ANGLE = 10  # degrees
-NUCLEATION_ARRHENIUS_CONST = 2.8e35
-GROWTH_ARRHENIUS_CONST = 3.07e250
-
-# BLOOD_SURFACE_ENERGY = 0.05589  # J / m^2  (water surface energy)
-CAOX_SURFACE_ENERGY = 0.33  # J / m^2 (https://hal.science/hal-02890692/file/2020_Debroise_manuscript_revised.pdf)
+CAOX_CONTACT_ANGLE = 75.9336  # degrees
+CAOX_SURFACE_ENERGY = 0.0057052  # J / m^2  (water surface energy)
+NUCLEATION_ARRHENIUS_CONST = 7.82292e-10
+GROWTH_ARRHENIUS_CONST = 3.18542e+03
 
 

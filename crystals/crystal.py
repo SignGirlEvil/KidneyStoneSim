@@ -37,15 +37,15 @@ class Crystal:
         return radius_from_volume(self.volume)
 
     @staticmethod
-    def calculate_growth_activation_barrier(caox_supersaturation: float) -> float:
-        numerator = math.pi * (2 * CAOX_MOLECULE_RADIUS) * (CAOX_SURFACE_ENERGY ** 2) * CAOX_MOLECULE_VOL
+    def calculate_growth_activation_barrier(caox_supersaturation: float, surface_energy: float) -> float:
+        numerator = math.pi * (2 * CAOX_MOLECULE_RADIUS) * (surface_energy ** 2) * CAOX_MOLECULE_VOL
         denominator = THERMAL_ENERGY * math.log(caox_supersaturation)
         return numerator / denominator
 
     @staticmethod
-    def calculate_growth_constant(caox_supersaturation: float) -> float:
-        activation_barrier = Crystal.calculate_growth_activation_barrier(caox_supersaturation)
-        return GROWTH_ARRHENIUS_CONST * math.exp(-activation_barrier / THERMAL_ENERGY)
+    def calculate_growth_constant(caox_supersaturation: float, surface_energy: float, growth_arrhenius: float) -> float:
+        activation_barrier = Crystal.calculate_growth_activation_barrier(caox_supersaturation, surface_energy)
+        return growth_arrhenius * math.exp(-activation_barrier / THERMAL_ENERGY)
 
     @staticmethod
     def calculate_max_lifespan(growth_constant: float, max_volume: float) -> float:

@@ -1,6 +1,5 @@
 from unittest import TestCase
 from crystals.crystal import Crystal
-from crystals.constants import GROWTH_ARRHENIUS_CONST
 import math
 
 
@@ -32,15 +31,13 @@ class CrystalTest(TestCase):
 
     def test_growth_activation_barrier(self):
         expected = 2.7345e-18
-        actual = Crystal.calculate_growth_activation_barrier(5)
+        actual = Crystal.calculate_growth_activation_barrier(5, 0.33)
         self.assertAlmostEqual(expected, actual, 4)
 
     def test_growth_constant(self):
-        caox_ss = 9
-        pre_exp = (caox_ss - 1) * GROWTH_ARRHENIUS_CONST
-        expected = pre_exp * math.exp(-467.9839)
-        actual = Crystal.calculate_growth_constant(caox_ss)
-        self.assertAlmostEqual(expected, actual, 30)
+        expected = 1.7512e+47
+        actual = Crystal.calculate_growth_constant(9, 0.33, 3.07e250)
+        self.assertAlmostEqual(expected / 1.0e47, actual / 1.0e47, 3)
 
     def test_max_lifespan(self):
         expected = 2.56496

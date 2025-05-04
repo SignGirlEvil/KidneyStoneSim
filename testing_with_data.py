@@ -67,10 +67,14 @@ def run_test(num_patients: int, contact_angle: float = CAOX_CONTACT_ANGLE, surfa
             print(f'i: {i}, SS: {supersaturation:.2f}', end=', ')
         kidney.supersaturation = supersaturation
         next_time = kidney.determine_time_until_stone(max_crystals=100, include_prints=False,
-                                                      max_time=10 * SECONDS_PER_YEAR) / SECONDS_PER_YEAR
+                                                      max_time=100 * SECONDS_PER_YEAR) / SECONDS_PER_YEAR
 
         if include_prints:
             print(next_time)
+
+        if not next_time:
+            continue
+
         all_stone_times.append(next_time)
 
         if next_time <= 5:
@@ -93,17 +97,17 @@ def run_test(num_patients: int, contact_angle: float = CAOX_CONTACT_ANGLE, surfa
     fig, axs = plt.subplots(2, 3)
 
     axs[0, 0].hist(caox_ss_dist, bins=75)
-    axs[0, 0].set_xlabel('CaOx SS')
+    axs[0, 0].set_xlabel('CaOx SS\n(c)')
     axs[0, 0].set_ylabel('Number of Patients')
-    axs[0, 0].set_title(f'Distribution of CaOx SS\nin Artificial Patients (n = {num_patients})')
+    axs[0, 0].set_title(f'Distribution of CaOx SS\nin Real-World Patients (n = {len(caox_ss_dist)})')
 
     axs[0, 1].hist(all_stone_times, bins=150)
-    axs[0, 1].set_xlabel('Years for Stone to Develop')
+    axs[0, 1].set_xlabel('Years for Stone to Develop\n(d)')
     axs[0, 1].set_ylabel('Number of Patients')
-    axs[0, 1].set_title(f'Distribution of Stone Development Time\nin Artificial Patients (n = {num_patients})')
+    axs[0, 1].set_title(f'Distribution of Stone Development Time\nin Artificial Patients (n = {len(all_stone_times)})')
 
     axs[1, 2].hist(usable_stone_caox_ss, bins=75)
-    axs[1, 2].set_xlabel('CaOx SS')
+    axs[1, 2].set_xlabel('CaOx SS\n(b)')
     axs[1, 2].set_ylabel('Number of Patients')
     axs[1, 2].set_title(f'Distribution of CaOx SS\nin Artificial Stone Formers '
                         f' (n = {len(usable_stone_caox_ss)})')
@@ -115,7 +119,7 @@ def run_test(num_patients: int, contact_angle: float = CAOX_CONTACT_ANGLE, surfa
                         f' (n = {len(usable_stone_times)})')
 
     axs[0, 2].hist(stone_former_ss_dist, bins=75)
-    axs[0, 2].set_xlabel('CaOx SS')
+    axs[0, 2].set_xlabel('CaOx SS\n(a)')
     axs[0, 2].set_ylabel('Number of Patients')
     axs[0, 2].set_title(f'Distribution of CaOx SS\nin Real-World Stone Formers '
                         f' (n = {len(stone_former_ss_dist)})')

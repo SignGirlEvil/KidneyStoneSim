@@ -14,7 +14,7 @@ class Kidney:
         self.growth_arrhenius = grow_arr
 
     def determine_time_until_stone(self, max_time: float = 1e50, max_crystals: int = 1000000,
-                                   include_prints: bool = False) -> float:
+                                   include_prints: bool = False) -> float | bool:
         stone_times: list[float] = []
         papilla = RenalPapilla(self.supersaturation, self.surface_energy, self.growth_arrhenius, self.contact_angle,
                                self.nucleation_arrhenius)
@@ -27,5 +27,8 @@ class Kidney:
 
             if include_prints:
                 print(f'Time: {stone_times[-1]:.3e} seconds\n')
+
+        if min(stone_times) >= max_time:
+            return False
 
         return min(stone_times)
